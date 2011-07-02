@@ -9,6 +9,7 @@ setup(name="adl3",
       description="ADL (AMD Display Library) 0.1",
       author="Mark Visser",
       author_email="mjmvisser@gmail.com",
+      url="https://github.com/mjmvisser/adl3",
       packages=["adl3"],
       zip_safe=True,
       classifiers = [
