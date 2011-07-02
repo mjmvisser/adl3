@@ -1,5 +1,5 @@
 import platform
-from ctypes import c_void_p, c_int, c_size_t
+from ctypes import *
 
 from .adl_defines import *
 from .adl_structures import *
@@ -55,7 +55,6 @@ ADL_Main_Control_Create.argtypes = [ADL_MAIN_MALLOC_CALLBACK, c_int]
 ADL_Main_Control_Refresh = _libadl.ADL_Main_Control_Refresh
 ADL_Main_Control_Refresh.restype = c_int
 ADL_Main_Control_Refresh.argtypes = []
-
 
 ADL_Main_Control_Destroy = _libadl.ADL_Main_Control_Destroy
 ADL_Main_Control_Destroy.restype = c_int
@@ -733,9 +732,4 @@ if _platform == "Linux":
     ADL_Display_XrandrDisplayName_Get = _libadl.ADL_Display_XrandrDisplayName_Get
     ADL_Display_XrandrDisplayName_Get.restype = c_int
     ADL_Display_XrandrDisplayName_Get.argtypes = [c_int, c_int, c_char_p, c_int]
-
-
-ADL_Main_Control_Create = _libadl.ADL_Main_Control_Create
-ADL_Main_Control_Create.restype = c_int
-ADL_Main_Control_Create.argtypes = [ADL_MAIN_MALLOC_CALLBACK, c_int]
 
