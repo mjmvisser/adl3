@@ -2,7 +2,7 @@
 
 from distutils.core import setup
 
-files = ["atitweak.py", "adl3/*"]
+files = ["atitweak", "adl3/*"]
 
 setup(name="adl3",
       version="0.2",
@@ -11,7 +11,7 @@ setup(name="adl3",
       author_email="mjmvisser@gmail.com",
       url="https://github.com/mjmvisser/adl3",
       packages=["adl3"],
-      scripts=["atitweak.py"],
+      scripts=["atitweak"],
       zip_safe=False,
       classifiers = [
           "Development Status :: 3 - Alpha",
