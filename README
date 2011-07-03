@@ -1,0 +1,17 @@
+This package wraps the AMD Display Library 3.0 [1] using ctypes. You do *not* need to install the
+SDK to use this package, and no compilation is required.
+
+Also included is a sample Python script using adl3 called _atitweak_. This script can list your
+adapters and optionally sets core and memory clock speed and voltage per performance level.
+
+For example, to downlock your memory to 300MHz, you might use this command:
+
+$ atitweak -m 300  
+Setting performance level 0 on adapter 0: memory clock 300MHz  
+Setting performance level 1 on adapter 0: memory clock 300MHz  
+Setting performance level 2 on adapter 0: memory clock 300MHz  
+
+WARNING! This software can damage or destroy your graphics card if used incorrectly. 
+
+[1] http://developer.amd.com/sdks/adlsdk/pages/default.aspx
+    AMD Display Library 3.0
