@@ -12,7 +12,7 @@ setup(name="adl3",
       url="https://github.com/mjmvisser/adl3",
       packages=["adl3"],
       scripts=["atitweak"],
-      zip_safe=False,
+      zip_safe=True,
       classifiers = [
           "Development Status :: 3 - Alpha",
           "Environment :: Console",
