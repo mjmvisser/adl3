@@ -152,7 +152,21 @@ def set_plevels(adapter_list=None,
                 
             else:
                 print "Adapter %d does not support discrete performance levels." % adapter_index
-    
+
+def set_fan_speed(adapter_list=None,
+                  fan_speed_percent=None):    
+    adapter_info = get_adapter_info()
+
+    fan_speed = ADLFanSpeedValue()
+    fan_speed.iSize = sizeof(fan_speed)
+    fan_speed.iSpeedType = ADL_DL_FANCTRL_SPEED_TYPE_PERCENT
+    fan_speed.iFanSpeed = fan_speed_percent
+    fan_speed.iFlags = ADL_DL_FANCTRL_FLAG_USER_DEFINED_SPEED
+
+    for adapter_index, info in enumerate(adapter_info):
+        if adapter_list is None or adapter_index in adapter_list:
+            if ADL_Overdrive5_FanSpeed_Set(info.iAdapterIndex, 0, byref(fan_speed)) != ADL_OK:
+                raise ADLError("ADL_Overdrive5_FanSpeed_Set failed.")
 
 if __name__ == "__main__":
     usage = "usage: %prog [options]"
@@ -171,6 +185,8 @@ if __name__ == "__main__":
     parser.add_option("-v", "--set-core-voltage", dest="core_voltage", type="float", action="store", default=None,
                       help="Sets core voltage level (in VDC) for the selected performance levels on the "
                            "selected adapters.""")
+    parser.add_option("-f", "--set-fan-speed", dest="fan_speed", type="int", action="store", default=None,
+                      help="""Sets the fan speed (in percent) for the selected adapters.""")
     
     parser.add_option("-A", "--adapter", dest="adapter_list", default="all", metavar="ADAPTERLIST",
                       help="Selects which adapters returned by --list-adapters should "
@@ -208,12 +224,16 @@ if __name__ == "__main__":
     
         if options.action == "list_adapters":
             list_adapters(adapter_list=adapter_list)
-        elif options.action is None and (options.engine_clock or options.memory_clock or options.core_voltage):
-            set_plevels(adapter_list=adapter_list,
-                        plevel_list=plevel_list,
-                        engine_clock=options.engine_clock,
-                        memory_clock=options.memory_clock,
-                        core_voltage=options.core_voltage)
+        elif options.action is None:
+            if options.engine_clock or options.memory_clock or options.core_voltage:
+                set_plevels(adapter_list=adapter_list,
+                            plevel_list=plevel_list,
+                            engine_clock=options.engine_clock,
+                            memory_clock=options.memory_clock,
+                            core_voltage=options.core_voltage)
+            if options.fan_speed:
+                set_fan_speed(adapter_list=adapter_list,
+                              fan_speed_percent=options.fan_speed)
         else:
             parser.print_help()
     
