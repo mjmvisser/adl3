@@ -165,6 +165,7 @@ def set_fan_speed(adapter_list=None,
 
     for adapter_index, info in enumerate(adapter_info):
         if adapter_list is None or adapter_index in adapter_list:
+            print "Setting fan speed to %d%% on adapter %d" % (fan_speed_percent, adapter_index)
             if ADL_Overdrive5_FanSpeed_Set(info.iAdapterIndex, 0, byref(fan_speed)) != ADL_OK:
                 raise ADLError("ADL_Overdrive5_FanSpeed_Set failed.")
 
