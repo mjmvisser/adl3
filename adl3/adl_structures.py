@@ -22,38 +22,78 @@
 
 from ctypes import Structure, POINTER
 from ctypes import c_int, c_float, c_char, c_char_p, c_short, c_long, c_longlong
+import platform
 
-class struct_AdapterInfo(Structure):
-    __slots__ = [
-        'iSize',
-        'iAdapterIndex',
-        'strUDID',
-        'iBusNumber',
-        'iDeviceNumber',
-        'iFunctionNumber',
-        'iVendorID',
-        'strAdapterName',
-        'strDisplayName',
-        'iPresent',
-        'iXScreenNum',
-        'iDrvIndex',
-        'strXScreenConfigName',
+_platform = platform.system()
+
+if _platform == "Linux":
+    class struct_AdapterInfo(Structure):
+        __slots__ = [
+            'iSize',
+            'iAdapterIndex',
+            'strUDID',
+            'iBusNumber',
+            'iDeviceNumber',
+            'iFunctionNumber',
+            'iVendorID',
+            'strAdapterName',
+            'strDisplayName',
+            'iPresent',
+            'iXScreenNum',
+            'iDrvIndex',
+            'strXScreenConfigName',
+        ]
+    struct_AdapterInfo._fields_ = [
+        ('iSize', c_int),
+        ('iAdapterIndex', c_int),
+        ('strUDID', c_char * 256),
+        ('iBusNumber', c_int),
+        ('iDeviceNumber', c_int),
+        ('iFunctionNumber', c_int),
+        ('iVendorID', c_int),
+        ('strAdapterName', c_char * 256),
+        ('strDisplayName', c_char * 256),
+        ('iPresent', c_int),
+        ('iXScreenNum', c_int),
+        ('iDrvIndex', c_int),
+        ('strXScreenConfigName', c_char * 256),
     ]
-struct_AdapterInfo._fields_ = [
-    ('iSize', c_int),
-    ('iAdapterIndex', c_int),
-    ('strUDID', c_char * 256),
-    ('iBusNumber', c_int),
-    ('iDeviceNumber', c_int),
-    ('iFunctionNumber', c_int),
-    ('iVendorID', c_int),
-    ('strAdapterName', c_char * 256),
-    ('strDisplayName', c_char * 256),
-    ('iPresent', c_int),
-    ('iXScreenNum', c_int),
-    ('iDrvIndex', c_int),
-    ('strXScreenConfigName', c_char * 256),
-]
+elif _platform == "Windows":
+    class struct_AdapterInfo(Structure):
+        __slots__ = [
+            'iSize',
+            'iAdapterIndex',
+            'strUDID',
+            'iBusNumber',
+            'iDeviceNumber',
+            'iFunctionNumber',
+            'iVendorID',
+            'strAdapterName',
+            'strDisplayName',
+            'iPresent',
+            'iExist',
+            'strDriverPath',
+            'strDriverPathExt',
+            'strPNPString',
+            'iOSDisplayIndex'
+        ]
+    struct_AdapterInfo._fields_ = [
+        ('iSize', c_int),
+        ('iAdapterIndex', c_int),
+        ('strUDID', c_char * 256),
+        ('iBusNumber', c_int),
+        ('iDeviceNumber', c_int),
+        ('iFunctionNumber', c_int),
+        ('iVendorID', c_int),
+        ('strAdapterName', c_char * 256),
+        ('strDisplayName', c_char * 256),
+        ('iPresent', c_int),
+        ('iExist', c_int),
+        ('strDriverPath', c_char * 256),
+        ('strDriverPathExt', c_char * 256),
+        ('strPNPString', c_char * 256),
+        ('iOSDisplayIndex', c_char * 256)
+    ]
 
 AdapterInfo = struct_AdapterInfo     # ADL_SDK_3.0/include/adl_structures.h:123
 LPAdapterInfo = POINTER(struct_AdapterInfo)     # ADL_SDK_3.0/include/adl_structures.h:123
