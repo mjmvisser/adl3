@@ -27,15 +27,31 @@ from .adl_defines import *
 from .adl_structures import *
 
 _platform = platform.system()
+_release = platform.release()
 
-if _platform == "Linux":
-    from ctypes import CDLL, RTLD_GLOBAL, CFUNCTYPE
+if _platform == "Linux" or _platform == "Windows":
+    from ctypes import CDLL, CFUNCTYPE
+
+    if _platform == "Linux":
+        from ctypes import RTLD_GLOBAL
+
+        # load the ADL 3.0 dso/dll
+        _libadl = CDLL("libatiadlxx.so", mode=RTLD_GLOBAL)
     
-    # load the ADL 3.0 dso/dll
-    _libadl = CDLL("libatiadlxx.so", mode=RTLD_GLOBAL)
+        # ADL requires we pass an allocation function and handle freeing it ourselves
+        _libc = CDLL("libc.so.6")
+    else:
+        from ctypes.util import find_msvcrt
+        try:
+            # first try to load the 64-bit library
+            _libadl = CDLL("atiadlxx.dll")
+        except OSError:
+            # fall back on the 32-bit library
+            _libadl = CDLL("atiadlxy.dll")
 
-    # ADL requires we pass an allocation function and handle freeing it ourselves
-    _libc = CDLL("libc.so.6")
+        _libc = CDLL(find_msvcrt());
+    
+    
     _malloc = _libc.malloc
     _malloc.argtypes = [c_size_t]
     _malloc.restype = c_void_p
@@ -54,19 +70,7 @@ if _platform == "Linux":
         if lpBuffer[0] is not None:
             _free(lpBuffer[0])
             lpBuffer[0] = None
-    
-elif _platform == "Windows":
-    from ctypes import WinDLL, WINFUNCTYPE
-    
-    # load the ADL 3.0 dso/dll
-    try:
-        # first try to load the 64-bit library
-        _libadl = WinDLL("atiadlxx.dll")
-    except OSError:
-        # fall back on the 32-bit library
-        _libadl = WinDLL("atiadlxy.dll")
-        
-    # TODO: I have no idea how to allocate memory in Windows
+
 else:
     raise RuntimeError("Platform '%s' is not Supported." % platform.system())
 
@@ -378,7 +382,7 @@ ADL_Display_SLSMapConfig_Rearrange = _libadl.ADL_Display_SLSMapConfig_Rearrange
 ADL_Display_SLSMapConfig_Rearrange.restype = c_int
 ADL_Display_SLSMapConfig_Rearrange.argtypes = [c_int, c_int, c_int, POINTER(ADLSLSTarget), ADLSLSMap, c_int]
 
-if _platform == "Windows":
+if _platform == "Windows" and _release == "XP":
     ADL_Display_PossibleMode_WinXP_Get = _libadl.ADL_Display_PossibleMode_WinXP_Get
     ADL_Display_PossibleMode_WinXP_Get.restype = c_int
     ADL_Display_PossibleMode_WinXP_Get.argtypes = [c_int, c_int, POINTER(ADLDisplayTarget), c_int, c_int, POINTER(c_int), POINTER(POINTER(ADLMode))]
