@@ -1,0 +1,361 @@
+#!/usr/bin/python
+# Copyright (C) 2011 by Mark Visser <mjmvisser@gmail.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+from IPython.core.debugger import Tracer; debug_here = Tracer()
+import os, sys
+from optparse import OptionParser
+#sys.path.append('C:\Users\admin\adl3')
+from adl3 import *
+import collections
+
+class ADLError(Exception):
+    pass
+
+adapters = []
+
+def initialize():
+    # check for unset DISPLAY, assume :0
+    if "DISPLAY" not in os.environ:
+        os.environ["DISPLAY"] = ":0"
+    
+    # the '1' means only retrieve info for active adapters
+    if ADL_Main_Control_Create(ADL_Main_Memory_Alloc, 1) != ADL_OK:
+        raise ADLError("Couldn't initialize ADL interface.")
+
+def shutdown():
+    if ADL_Main_Control_Destroy() != ADL_OK:
+        raise ADLError("Couldn't destroy ADL interface global pointers.")
+
+def get_adapter_info():
+    
+    adapter_info = []
+    num_adapters = c_int(-1)
+    if ADL_Adapter_NumberOfAdapters_Get(byref(num_adapters)) != ADL_OK:
+        raise ADLError("ADL_Adapter_NumberOfAdapters_Get failed.")
+
+    # allocate an array of AdapterInfo, see ctypes docs for more info
+    AdapterInfoArray = (AdapterInfo * num_adapters.value)() 
+    
+    # AdapterInfo_Get grabs info for ALL adapters in the system
+    if ADL_Adapter_AdapterInfo_Get(cast(AdapterInfoArray, LPAdapterInfo), sizeof(AdapterInfoArray)) != ADL_OK:
+        raise ADLError("ADL_Adapter_AdapterInfo_Get failed.")
+
+    deviceAdapter = collections.namedtuple('DeviceAdapter', ['AdapterIndex', 'AdapterID', 'BusNumber', 'UDID'])
+    devices = []
+    
+    for adapter in AdapterInfoArray:
+        index = adapter.iAdapterIndex
+        busNum = adapter.iBusNumber
+        udid = adapter.strUDID
+        
+        adapterID = c_int(-1)
+        #status = c_int(-1)
+        
+        if ADL_Adapter_ID_Get(index, byref(adapterID)) != ADL_OK:
+            raise ADLError("ADL_Adapter_Active_Get failed.")
+        
+        adapterIDCopy = adapterID.value
+        
+        debug_here()
+
+        if not devices:
+            devices.append(deviceAdapter(index,adapterIDCopy,busNum,udid))
+            break
+        
+        for device in devices:
+            if device.AdapterID != adapterID.value:
+                devices.append(deviceAdapter(index,adapterIDCopy,busNum,udid))
+
+        # save it in our list if it's the first index of the adapter
+    
+    debug_here()
+    
+    for device in devices:
+        adapter_info.append(AdapterInfoArray[device.AdapterIndex])
+    
+    return adapter_info
+
+def list_adapters(adapter_list=None):
+    adapter_info = get_adapter_info()
+    
+    for index, info in enumerate(adapter_info):
+        if adapter_list is None or index in adapter_list:
+            print "%d. %s (%s)" % (index, info.strAdapterName, info.strDisplayName)
+            
+            od_parameters = ADLODParameters()
+            od_parameters.iSize = sizeof(od_parameters)
+            
+            if ADL_Overdrive5_ODParameters_Get(info.iAdapterIndex, byref(od_parameters)) != ADL_OK:
+                raise ADLError("ADL_Overdrive5_ODParameters_Get failed.")
+                
+            print "    engine clock range is %g - %gMHz" % (od_parameters.sEngineClock.iMin/100.0,od_parameters.sEngineClock.iMax/100.0)
+            print "    memory clock range is %g - %gMHz" % (od_parameters.sMemoryClock.iMin/100.0, od_parameters.sMemoryClock.iMax/100.0)
+            print "    core voltage range is %g - %gVDC" % (od_parameters.sVddc.iMin/1000.0, od_parameters.sVddc.iMax/1000.0)
+    
+            if od_parameters.iDiscretePerformanceLevels:
+                plevels = ADLODPerformanceLevels()
+                plevels_size = sizeof(ADLODPerformanceLevels) + sizeof(ADLODPerformanceLevel) * (od_parameters.iNumberOfPerformanceLevels -1)
+                resize(plevels, plevels_size)
+                plevels.iSize = plevels_size
+        
+                if ADL_Overdrive5_ODPerformanceLevels_Get(info.iAdapterIndex, 0, byref(plevels)) != ADL_OK:
+                    raise ADLError("ADL_Overdrive5_ODPerformanceLevels_Get failed.")
+        
+                levels = cast(plevels.aLevels, POINTER(ADLODPerformanceLevel))
+        
+                for index in range(0, od_parameters.iNumberOfPerformanceLevels):
+                    print "    performance level %d: engine clock %gMHz, memory clock %gMHz, core voltage %gVDC" % (index,
+                                                                                                                levels[index].iEngineClock/100.0,
+                                                                                                                levels[index].iMemoryClock/100.0,
+                                                                                                                levels[index].iVddc/1000.0)
+
+            fan_speed_info = ADLFanSpeedInfo()
+            fan_speed_info.iSize = sizeof(fan_speed_info)
+    
+            if ADL_Overdrive5_FanSpeedInfo_Get(info.iAdapterIndex, 0, byref(fan_speed_info)) != ADL_OK:
+                raise ADLError("ADL_Overdrive5_FanSpeedInfo_Get failed.")
+            
+            print "    fan speed range: %d - %d%%,  %d - %d RPM" % (fan_speed_info.iMinPercent, fan_speed_info.iMaxPercent, 
+                                                                    fan_speed_info.iMinRPM, fan_speed_info.iMaxRPM)
+
+
+            
+def show_status(adapter_list=None):
+    adapter_info = get_adapter_info()
+    
+    for index, info in enumerate(adapter_info):
+        if adapter_list is None or index in adapter_list:
+            print "%d. %s (%s)" % (index, info.strAdapterName, info.strDisplayName)
+
+            activity = ADLPMActivity()
+            activity.iSize = sizeof(activity)
+            
+            if ADL_Overdrive5_CurrentActivity_Get(info.iAdapterIndex, byref(activity)) != ADL_OK:
+                raise ADLError("ADL_Overdrive5_CurrentActivity_Get failed.")
+            
+            print ("    engine clock %gMHz, memory clock %gMHz, core voltage %gVDC, performance level %d, utilization %d%%" % 
+                        (activity.iEngineClock/100.0, activity.iMemoryClock/100.0, activity.iVddc/1000.0,
+                         activity.iCurrentPerformanceLevel, activity.iActivityPercent))
+                
+            try:
+                fan_speed = {}
+                for speed_type in (ADL_DL_FANCTRL_SPEED_TYPE_PERCENT, ADL_DL_FANCTRL_SPEED_TYPE_RPM):    
+                    fan_speed_value = ADLFanSpeedValue()
+                    fan_speed_value.iSize = sizeof(fan_speed_value)
+                    fan_speed_value.iSpeedType = speed_type
+            
+                    if ADL_Overdrive5_FanSpeed_Get(info.iAdapterIndex, 0, byref(fan_speed_value)) != ADL_OK:
+                        raise ADLError("ADL_Overdrive5_FanSpeed_Get failed.")
+            
+                    fan_speed[speed_type] = fan_speed_value.iFanSpeed
+                    user_defined = fan_speed_value.iFlags & ADL_DL_FANCTRL_FLAG_USER_DEFINED_SPEED
+        
+                print "    fan speed %d%% (%d RPM) (%s)" % (fan_speed[ADL_DL_FANCTRL_SPEED_TYPE_PERCENT],
+                                                             fan_speed[ADL_DL_FANCTRL_SPEED_TYPE_RPM],
+                                                             "user-defined" if user_defined else "default")
+            except ADLError:
+                print "    unable to get fan speed"
+                
+            temperature = ADLTemperature()
+            temperature.iSize = sizeof(temperature)
+                
+            if ADL_Overdrive5_Temperature_Get(info.iAdapterIndex, 0, byref(temperature)) != ADL_OK:
+                raise ADLError("ADL_Overdrive5_Temperature_Get failed.")
+            
+            print "    temperature %g C" % (temperature.iTemperature/1000.0)
+
+
+def set_plevels(adapter_list=None,
+                plevel_list=None,
+                engine_clock=None,
+                memory_clock=None,
+                core_voltage=None):
+    adapter_info = get_adapter_info()
+
+    for adapter_index, info in enumerate(adapter_info):
+        if adapter_list is None or adapter_index in adapter_list:
+            od_parameters = ADLODParameters()
+            od_parameters.iSize = sizeof(od_parameters)
+            
+            if ADL_Overdrive5_ODParameters_Get(info.iAdapterIndex, byref(od_parameters)) != ADL_OK:
+                raise ADLError("ADL_Overdrive5_ODParameters_Get failed.")
+                
+            if od_parameters.iDiscretePerformanceLevels:
+                plevels = ADLODPerformanceLevels()
+                plevels_size = sizeof(ADLODPerformanceLevels) + sizeof(ADLODPerformanceLevel) * (od_parameters.iNumberOfPerformanceLevels -1)
+                resize(plevels, plevels_size)
+                plevels.iSize = plevels_size
+        
+                if ADL_Overdrive5_ODPerformanceLevels_Get(info.iAdapterIndex, 0, byref(plevels)) != ADL_OK:
+                    raise ADLError("ADL_Overdrive5_ODPerformanceLevels_Get failed.")
+        
+                levels = cast(plevels.aLevels, POINTER(ADLODPerformanceLevel))
+                
+                for plevel_index in range(0, od_parameters.iNumberOfPerformanceLevels):
+                    if plevel_list is None or plevel_index in plevel_list:
+                        message = []
+                        
+                        if engine_clock is not None:
+                            levels[plevel_index].iEngineClock = int(engine_clock*100.0)
+                            message.append("engine clock %gMHz" % engine_clock)
+                        if memory_clock is not None:
+                            levels[plevel_index].iMemoryClock = int(memory_clock*100.0)
+                            message.append("memory clock %gMHz" % memory_clock)
+                        if core_voltage is not None:
+                            levels[plevel_index].iVddc = int(core_voltage*1000.0)
+                            message.append("core voltage %gVDC" % core_voltage)
+                        
+                        print "Setting performance level %d on adapter %d: %s" % (plevel_index,
+                                                                                  adapter_index,
+                                                                                  ", ".join(message))
+                        
+                # set the performance levels for this adapter            
+                if ADL_Overdrive5_ODPerformanceLevels_Set(info.iAdapterIndex, byref(plevels)) != ADL_OK:
+                    raise ADLError("ADL_Overdrive5_ODPerformanceLevels_Set failed.")
+                
+            else:
+                print "Adapter %d does not support discrete performance levels." % adapter_index
+
+def set_fan_speed(adapter_list=None,
+                  fan_speed=None):    
+    adapter_info = get_adapter_info()
+
+    for adapter_index, info in enumerate(adapter_info):
+        if adapter_list is None or adapter_index in adapter_list:
+            if fan_speed == "default":
+                print "Setting fan speed to default on adapter %d" % (adapter_index)
+                if ADL_Overdrive5_FanSpeedToDefault_Set(info.iAdapterIndex, 0) != ADL_OK:
+                    raise ADLError("ADL_Overdrive5_FanSpeedToDefault_Set failed.")
+            else:
+                fan_speed_value = ADLFanSpeedValue()
+                fan_speed_value.iSize = sizeof(fan_speed_value)
+                fan_speed_value.iSpeedType = ADL_DL_FANCTRL_SPEED_TYPE_PERCENT
+                fan_speed_value.iFanSpeed = fan_speed
+                fan_speed_value.iFlags = ADL_DL_FANCTRL_FLAG_USER_DEFINED_SPEED
+
+                print "Setting fan speed to %d%% on adapter %d" % (fan_speed, adapter_index)
+                if ADL_Overdrive5_FanSpeed_Set(info.iAdapterIndex, 0, byref(fan_speed_value)) != ADL_OK:
+                    raise ADLError("ADL_Overdrive5_FanSpeed_Set failed.")
+
+#def i2c_get_core_voltage(adapter_list=None):
+#    adapter_info = get_adapter_info()
+#    
+#    for adapter_index, info in enumerate(adapter_info):
+#        if adapter_list is None or adapter_index in adapter_list:
+#            i2c_data = ADLI2C()
+#            i2c_data.iSize = sizeof(i2c_data)
+#            i2c_data.iLine = ADL_DL_I2C_LINE_OD_CONTROL
+#            i2c_data.iAddress = 0x70 << 1
+#            i2c_data.iOffset = 0x15 + 2
+#            i2c_data.iAction = ADL_DL_I2C_ACTIONREAD
+#            i2c_data.iSpeed = 10
+#            i2c_data.iDataSize = 1
+#            i2c_data.pcData = c_char_p("\0")
+#            
+#            if ADL_Display_WriteAndReadI2C(info.iAdapterIndex, byref(i2c_data)) != ADL_OK:
+#                raise ADLError("ADL_DisplayWriteAndReadI2C failed.")
+#            
+#            print "Voltage: %g" % (0.450 + 0.0125 * (i2c_data.pcData[0] & 0x7f))
+#        
+
+if __name__ == "__main__":
+    usage = "usage: %prog [options]"
+    
+    parser = OptionParser(usage=usage)
+    
+    parser.add_option("-l", "--list-adapters", dest="action", action="store_const", const="list_adapters",
+                      help="Lists all detected and supported display adapters.")
+    parser.add_option("-s", "--status", dest="action", action="store_const", const="status",
+                      help="Shows current clock speeds, core voltage, utilization and performance level.")
+
+    parser.add_option("-e", "--set-engine-clock", dest="engine_clock", type="float", action="store", default=None,
+                      help="Sets engine clock speed (in MHz) for the selected performance levels on the " 
+                           "selected adapters.")
+    parser.add_option("-m", "--set-memory-clock", dest="memory_clock", type="float", action="store", default=None,
+                      help="Sets memory clock speed (in MHz) for the selected peformance levels on the " 
+                           "selected adapters.")
+    parser.add_option("-v", "--set-core-voltage", dest="core_voltage", type="float", action="store", default=None,
+                      help="Sets core voltage level (in VDC) for the selected performance levels on the "
+                           "selected adapters.""")
+    parser.add_option("-f", "--set-fan-speed", dest="fan_speed", type="int", action="store", default=None,
+                      help="""Sets the fan speed (in percent) for the selected adapters.""")
+    parser.add_option("-d", "--set-fan-speed-default", dest="fan_speed", action="store_const", const="default",
+                      help="""Resets the fan speed to its default setting.""")
+    
+    parser.add_option("-A", "--adapter", dest="adapter_list", default="all", metavar="ADAPTERLIST",
+                      help="Selects which adapters returned by --list-adapters should "
+                           "be affected by other atitweak options.  ADAPTERLIST contains "
+                           "either a comma-seperated sequence of the index numbers of the "
+                           "adapters to be affected or else contains the keyword \"all\" to "
+                           "select all the adapters. If --adapter is missing, all adapters "
+                           "will be affected.")
+    
+    parser.add_option("-P", "--performance-level", dest="plevel", default="all", 
+                      metavar="PERFORMANCELEVELLIST",
+                      help="Selects which performance levels returned by --list-adapters should be "
+                           "affected by other atitweak options. PERFORMANCELEVELLIST contains either "
+                           "a comma-separated sequence of the index numbers of the performance levels "
+                           "to be affected or else contains the keyword \"all\" to select all "
+                           "performance levels. If --performance-level is missing, all performance "
+                           "levels will be affected.")
+    
+    (options, args) = parser.parse_args()
+
+    if options.adapter_list == "all":
+        adapter_list = None
+    else:
+        adapter_list = [int(adapter) for adapter in options.adapter_list.split(",")]
+
+    if options.plevel == "all":
+        plevel_list = None
+    else:
+        plevel_list = [int(plevel) for plevel in options.plevel.split(",")]
+
+    result = 0
+    
+    try:
+        initialize()
+    
+        if options.action == "list_adapters":
+            list_adapters(adapter_list=adapter_list)
+        elif options.action == "status":
+            show_status(adapter_list=adapter_list)
+        elif options.action is None:
+            if options.engine_clock or options.memory_clock or options.core_voltage:
+                set_plevels(adapter_list=adapter_list,
+                            plevel_list=plevel_list,
+                            engine_clock=options.engine_clock,
+                            memory_clock=options.memory_clock,
+                            core_voltage=options.core_voltage)
+            if options.fan_speed:
+                set_fan_speed(adapter_list=adapter_list,
+                              fan_speed=options.fan_speed)
+        else:
+            parser.print_help()
+    
+    except ADLError, err:
+        result = 1
+        print err
+        
+    finally:        
+        shutdown()
+        
+    sys.exit(result)
