@@ -19,9 +19,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+from IPython.core.debugger import Tracer; debug_here = Tracer()
 import os, sys
 from optparse import OptionParser
+#sys.path.append('C:\Users\admin\adl3')
 from adl3 import *
+import collections
 
 class ADLError(Exception):
     pass
@@ -42,27 +45,51 @@ def shutdown():
         raise ADLError("Couldn't destroy ADL interface global pointers.")
 
 def get_adapter_info():
-    adapter_info = []
     
+    adapter_info = []
     num_adapters = c_int(-1)
     if ADL_Adapter_NumberOfAdapters_Get(byref(num_adapters)) != ADL_OK:
         raise ADLError("ADL_Adapter_NumberOfAdapters_Get failed.")
 
     # allocate an array of AdapterInfo, see ctypes docs for more info
-    info = (AdapterInfo * num_adapters.value)() 
+    AdapterInfoArray = (AdapterInfo * num_adapters.value)() 
     
     # AdapterInfo_Get grabs info for ALL adapters in the system
-    if ADL_Adapter_AdapterInfo_Get(cast(info, LPAdapterInfo), sizeof(info)) != ADL_OK:
+    if ADL_Adapter_AdapterInfo_Get(cast(AdapterInfoArray, LPAdapterInfo), sizeof(AdapterInfoArray)) != ADL_OK:
         raise ADLError("ADL_Adapter_AdapterInfo_Get failed.")
 
-    for adapter_index in range(0, num_adapters.value):
-        status = c_int(-1)
-        if ADL_Adapter_Active_Get(adapter_index, byref(status)) != ADL_OK:
+    deviceAdapter = collections.namedtuple('DeviceAdapter', ['AdapterIndex', 'AdapterID', 'BusNumber', 'UDID'])
+    devices = []
+    
+    for adapter in AdapterInfoArray:
+        index = adapter.iAdapterIndex
+        busNum = adapter.iBusNumber
+        udid = adapter.strUDID
+        
+        adapterID = c_int(-1)
+        #status = c_int(-1)
+        
+        if ADL_Adapter_ID_Get(index, byref(adapterID)) != ADL_OK:
             raise ADLError("ADL_Adapter_Active_Get failed.")
+        
+        adapterIDCopy = adapterID.value
+        
+        debug_here()
 
-        # save it in our list if it's active
-        if status.value == ADL_TRUE:
-            adapter_info.append(info[adapter_index])
+        if not devices:
+            devices.append(deviceAdapter(index,adapterIDCopy,busNum,udid))
+            break
+        
+        for device in devices:
+            if device.AdapterID != adapterID.value:
+                devices.append(deviceAdapter(index,adapterIDCopy,busNum,udid))
+
+        # save it in our list if it's the first index of the adapter
+    
+    debug_here()
+    
+    for device in devices:
+        adapter_info.append(AdapterInfoArray[device.AdapterIndex])
     
     return adapter_info
 
