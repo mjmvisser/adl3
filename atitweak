@@ -71,16 +71,13 @@ def get_adapter_info():
         
         found = False
         for device in devices:
-            debug_here()
             if (device.AdapterID.value == adapterID.value):
                 found = True
                 break
         
-        # save it in our list if it's the first index of the adapter
+        # save it in our list if it's the first controller of the adapter
         if (found == False):
             devices.append(deviceAdapter(index,adapterID,busNum,udid))
-    
-    #debug_here()
     
     for device in devices:
         adapter_info.append(AdapterInfoArray[device.AdapterIndex])
