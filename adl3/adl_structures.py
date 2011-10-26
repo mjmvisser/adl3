@@ -92,7 +92,7 @@ elif _platform == "Windows":
         ('strDriverPath', c_char * 256),
         ('strDriverPathExt', c_char * 256),
         ('strPNPString', c_char * 256),
-        ('iOSDisplayIndex', c_char * 256)
+        ('iOSDisplayIndex', c_int)
     ]
 
 AdapterInfo = struct_AdapterInfo     # ADL_SDK_3.0/include/adl_structures.h:123
