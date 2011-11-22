@@ -172,6 +172,17 @@ def show_status(adapter_list=None):
                 raise ADLError("ADL_Overdrive5_Temperature_Get failed.")
             
             print "    temperature %g C" % (temperature.iTemperature/1000.0)
+            
+            # Powertune level
+            powertune_level_value = c_int()
+            dummy = c_int()
+            
+            if ADL_Overdrive5_PowerControl_Get(info.iAdapterIndex, byref(powertune_level_value), byref(dummy)) != ADL_OK:
+                raise ADLError("ADL_Overdrive5_PowerControl_Get failed.")
+
+            print "    Powertune %d%%" % (powertune_level_value.value)
+            
+            
 
 
 def set_plevels(adapter_list=None,
@@ -267,6 +278,16 @@ def set_fan_speed(adapter_list=None,
 #            print "Voltage: %g" % (0.450 + 0.0125 * (i2c_data.pcData[0] & 0x7f))
 #        
 
+def set_powertune_level(adapter_list=None,
+                        powertune_level=None):    
+    adapter_info = get_adapter_info()
+
+    for adapter_index, info in enumerate(adapter_info):
+        if adapter_list is None or adapter_index in adapter_list:
+            print "Setting powertune level to %d%% on adapter %d" % (powertune_level, adapter_index)
+            if ADL_Overdrive5_PowerControl_Set(info.iAdapterIndex, powertune_level) != ADL_OK:
+                raise ADLError("ADL_Overdrive5_PowerControl_Set failed.")
+
 if __name__ == "__main__":
     usage = "usage: %prog [options]"
     
@@ -308,6 +329,9 @@ if __name__ == "__main__":
                            "performance levels. If --performance-level is missing, all performance "
                            "levels will be affected.")
     
+    parser.add_option("-p", "--set-powertune", dest="powertune_level", type="int", action="store", default=None,
+                      help="Sets powertune level (between -20% and 20%) for on the selected adapters.")
+    
     (options, args) = parser.parse_args()
 
     if options.adapter_list == "all":
@@ -339,6 +363,9 @@ if __name__ == "__main__":
             if options.fan_speed:
                 set_fan_speed(adapter_list=adapter_list,
                               fan_speed=options.fan_speed)
+            if options.powertune_level:
+                set_powertune_level(adapter_list=adapter_list,
+                              powertune_level=options.powertune_level)
         else:
             parser.print_help()
     
