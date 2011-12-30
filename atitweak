@@ -353,7 +353,7 @@ if __name__ == "__main__":
             list_adapters(adapter_list=adapter_list)
         elif options.action == "status":
             show_status(adapter_list=adapter_list)
-        elif options.action is None:
+        elif options.action is None and len(sys.argv) > 1:
             if options.engine_clock or options.memory_clock or options.core_voltage:
                 set_plevels(adapter_list=adapter_list,
                             plevel_list=plevel_list,
