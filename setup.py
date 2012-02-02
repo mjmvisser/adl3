@@ -5,7 +5,7 @@ from distutils.core import setup
 files = ["atitweak", "adl3/*"]
 
 setup(name="adl3",
-      version="0.5",
+      version="0.6",
       description="ADL (AMD Display Library)",
       author="Mark Visser",
       author_email="mjmvisser@gmail.com",
