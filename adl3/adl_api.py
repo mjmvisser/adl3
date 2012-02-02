@@ -35,6 +35,9 @@ if _platform == "Linux" or _platform == "Windows":
     if _platform == "Linux":
         from ctypes import RTLD_GLOBAL
 
+        # pre-load libXext (required by libatiadlxx.so in 11.12)
+        CDLL("libXext.so.6", mode=RTLD_GLOBAL)
+
         # load the ADL 3.0 dso/dll
         _libadl = CDLL("libatiadlxx.so", mode=RTLD_GLOBAL)
     
