@@ -146,23 +146,30 @@ def show_status(adapter_list=None):
                         (activity.iEngineClock/100.0, activity.iMemoryClock/100.0, activity.iVddc/1000.0,
                          activity.iCurrentPerformanceLevel, activity.iActivityPercent))
                 
-            try:
-                fan_speed = {}
-                for speed_type in (ADL_DL_FANCTRL_SPEED_TYPE_PERCENT, ADL_DL_FANCTRL_SPEED_TYPE_RPM):    
-                    fan_speed_value = ADLFanSpeedValue()
-                    fan_speed_value.iSize = sizeof(fan_speed_value)
-                    fan_speed_value.iSpeedType = speed_type
-            
-                    if ADL_Overdrive5_FanSpeed_Get(info.iAdapterIndex, 0, byref(fan_speed_value)) != ADL_OK:
-                        raise ADLError("ADL_Overdrive5_FanSpeed_Get failed.")
-            
-                    fan_speed[speed_type] = fan_speed_value.iFanSpeed
-                    user_defined = fan_speed_value.iFlags & ADL_DL_FANCTRL_FLAG_USER_DEFINED_SPEED
+            fan_speed = {}
+            for speed_type in (ADL_DL_FANCTRL_SPEED_TYPE_PERCENT, ADL_DL_FANCTRL_SPEED_TYPE_RPM):    
+                fan_speed_value = ADLFanSpeedValue()
+                fan_speed_value.iSize = sizeof(fan_speed_value)
+                fan_speed_value.iSpeedType = speed_type
         
+                if ADL_Overdrive5_FanSpeed_Get(info.iAdapterIndex, 0, byref(fan_speed_value)) != ADL_OK:
+                    fan_speed[speed_type] = None
+                    continue
+            
+                fan_speed[speed_type] = fan_speed_value.iFanSpeed
+                user_defined = fan_speed_value.iFlags & ADL_DL_FANCTRL_FLAG_USER_DEFINED_SPEED
+        
+            if bool(fan_speed[ADL_DL_FANCTRL_SPEED_TYPE_PERCENT]) and bool(fan_speed[ADL_DL_FANCTRL_SPEED_TYPE_RPM]):
                 print "    fan speed %d%% (%d RPM) (%s)" % (fan_speed[ADL_DL_FANCTRL_SPEED_TYPE_PERCENT],
-                                                             fan_speed[ADL_DL_FANCTRL_SPEED_TYPE_RPM],
-                                                             "user-defined" if user_defined else "default")
-            except ADLError:
+                                                            fan_speed[ADL_DL_FANCTRL_SPEED_TYPE_RPM],
+                                                            "user-defined" if user_defined else "default")
+            elif bool(fan_speed[ADL_DL_FANCTRL_SPEED_TYPE_PERCENT]):
+                print "    fan speed %d%% (%s)" % (fan_speed[ADL_DL_FANCTRL_SPEED_TYPE_PERCENT],
+                                                   "user-defined" if user_defined else "default")                
+            elif bool(fan_speed[ADL_DL_FANCTRL_SPEED_TYPE_RPM]) is True:
+                print "    fan speed %d RPM (%s)" % (fan_speed[ADL_DL_FANCTRL_SPEED_TYPE_RPM],
+                                                     "user-defined" if user_defined else "default")
+            else:
                 print "    unable to get fan speed"
                 
             temperature = ADLTemperature()
@@ -180,7 +187,7 @@ def show_status(adapter_list=None):
             if ADL_Overdrive5_PowerControl_Get(info.iAdapterIndex, byref(powertune_level_value), byref(dummy)) != ADL_OK:
                 raise ADLError("ADL_Overdrive5_PowerControl_Get failed.")
 
-            print "    Powertune %d%%" % (powertune_level_value.value)
+            print "    powertune %d%%" % (powertune_level_value.value)
             
             
 
