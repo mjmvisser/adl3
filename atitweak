@@ -370,7 +370,7 @@ if __name__ == "__main__":
             if options.fan_speed:
                 set_fan_speed(adapter_list=adapter_list,
                               fan_speed=options.fan_speed)
-            if options.powertune_level:
+            if options.powertune_level != None:
                 set_powertune_level(adapter_list=adapter_list,
                               powertune_level=options.powertune_level)
         else:
