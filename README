@@ -1,3 +1,12 @@
+ANNOUNCEMENT
+------------
+I'm no longer able to maintain adl3 due to family obligations (diapers, etc.). If anyone out there 
+is able to take over, I'd be greatly obliged. Please message me and we can work out details.
+
+cheers,
+-Mark
+
+---
 This package wraps the AMD Display Library 3.0 [1] using ctypes. You do *not* need to install the
 SDK to use this package, and no compilation is required.
 
