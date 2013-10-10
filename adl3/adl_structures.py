@@ -21,7 +21,7 @@
 # This code is based on the AMD Display Library 3.0 SDK
 
 from ctypes import Structure, POINTER
-from ctypes import c_int, c_float, c_char, c_char_p, c_short, c_long, c_longlong
+from ctypes import c_int, c_float, c_char, c_char_p, c_short, c_long, c_longlong, c_byte
 import platform
 
 _platform = platform.system()
@@ -420,7 +420,7 @@ struct_ADLDisplayEDIDData._fields_ = [
     ('iFlag', c_int),
     ('iEDIDSize', c_int),
     ('iBlockIndex', c_int),
-    ('cEDIDData', c_char * 256),
+    ('cEDIDData', c_byte * 256),
     ('iReserved', c_int * 4),
 ]
 
