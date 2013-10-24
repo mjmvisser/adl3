@@ -352,6 +352,7 @@ struct_ADLDisplayModeInfo._fields_ = [
 ]
 
 ADLDisplayModeInfo = struct_ADLDisplayModeInfo     # ADL_SDK_3.0/include/adl_structures.h:592
+LPADLDisplayModeInfo = POINTER(struct_ADLDisplayModeInfo)
 class struct_ADLDisplayProperty(Structure):
     __slots__ = [
         'iSize',
