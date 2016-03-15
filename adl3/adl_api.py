@@ -44,7 +44,6 @@ if _platform == "Linux" or _platform == "Windows":
         # ADL requires we pass an allocation function and handle freeing it ourselves
         _libc = CDLL("libc.so.6")
     else:
-        from ctypes.util import find_msvcrt
         try:
             # first try to load the 64-bit library
             _libadl = CDLL("atiadlxx.dll")
@@ -52,7 +51,7 @@ if _platform == "Linux" or _platform == "Windows":
             # fall back on the 32-bit library
             _libadl = CDLL("atiadlxy.dll")
 
-        _libc = CDLL(find_msvcrt());
+        _libc = cdll.msvcrt
     
     
     _malloc = _libc.malloc
